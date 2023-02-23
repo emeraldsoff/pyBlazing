@@ -1,0 +1,83 @@
+{% set cuda_version='.'.join(environ.get('CUDA_VERSION', '10.1').split('.')[:2]) %}
+{% set version = environ.get('GIT_DESCRIBE_TAG', '0.0.0.dev').lstrip('v') + environ.get('VERSION_SUFFIX', '') %}
+{% set minor_version =  version.split('.')[0] + '.' + version.split('.')[1] %}
+{% set py_version=environ.get('CONDA_PY', '36') %}
+
+package:
+    name: blazingsql
+    version: {{ version }}
+
+source:
+    git_url: ../../..
+build:
+    number: {{ GIT_DESCRIBE_NUMBER }}
+    string: cuda_{{ cuda_version }}_py{{ py_version }}_{{ GIT_DESCRIBE_HASH }}_{{ GIT_DESCRIBE_NUMBER }}
+    script_env:
+      - VERSION_SUFFIX
+      - PARALLEL_LEVEL
+      - CUDA_VERSION
+      - CUDACXX
+      - CUDAHOSTCXX
+      - CC
+      - CXX
+
+requirements:
+    build:
+        - cmake 3.18.4
+        - ninja
+        - gtest 1.10
+        - aws-sdk-cpp
+        - google-cloud-cpp >=1.25.0,<1.30
+        - mysql-connector-cpp 8.0.23
+        - libpq 13
+        - nlohmann_json 3.9.1
+        - cppzmq
+        - python
+        - setuptools
+        - spdlog >=1.8.5,<1.9
+        - cython >=0.29,<0.30
+        - openjdk >=8.0, <9.0
+        - maven
+        - cudf {{ minor_version }}.*
+        - ucx-py 0.21.*
+        - ucx-proc=*=gpu
+        - boost-cpp 1.72.0
+        - dlpack
+        - cudatoolkit {{ cuda_version }}.*
+    run:
+        - python
+        - nlohmann_json 3.9.1
+        - aws-sdk-cpp
+        - google-cloud-cpp >=1.25.0
+        - openjdk >=8.0, <9.0
+        - jpype1
+        - netifaces
+        - pyhive
+        - sqlite 3
+        - spdlog >=1.8.5,<1.9
+        - {{ pin_compatible('zeromq', max_pin='x.x.x') }}
+        - dask-cudf {{ minor_version }}.*
+        - dask-cuda {{ minor_version }}.*
+        - ucx-py 0.21.*
+        - ucx-proc=*=gpu
+        - {{ pin_compatible('cudatoolkit', max_pin='x.x') }}
+        - tqdm
+        - ipywidgets
+        - boost-cpp 1.72.0
+
+test:
+    requires:
+        - cudatoolkit {{ cuda_version }}.*
+        - gtest 1.10
+        - nlohmann_json 3.9.1
+        - aws-sdk-cpp
+        - google-cloud-cpp >=1.25.0
+        - boost-cpp 1.72.0
+    imports:
+        - cio
+
+about:
+    home: http://www.blazingsql.com/
+    license: Apache-2.0
+    license_family: Apache
+    summary: GPU-powered distributed SQL engine in Python

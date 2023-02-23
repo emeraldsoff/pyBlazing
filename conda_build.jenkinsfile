@@ -1,0 +1,55 @@
+pipeline {
+   
+  agent any
+
+  options {
+    timestamps()
+    timeout(time: 2, unit: 'HOURS')
+  }
+
+  parameters {
+    choice(name: 'TYPE', choices: 'nightly\nstable', description: 'Nightly or Stable')
+    string(name: 'RAPIDS_BUILD_VERSION', defaultValue: '0.17', description: 'Version of Rapids, example: 0.18')
+    choice(name: 'CUDA_VERSION', choices: '10.1\n10.2\n11.0', description: 'Cuda version')
+    choice(name: 'PYTHON_VERSION', choices: '3.7\n3.8', description: 'Python version')
+
+    string(name: 'CONDA_USERNAME', defaultValue: 'blazingsql-nightly', description: 'The Anaconda account, example: blazingsql, blazingsql-nightly, etc')
+    string(name: 'CONDA_TOKEN', defaultValue: 'conda-token-nightly', description: 'Anaconda account token')
+    booleanParam(name: 'TEST', defaultValue: false, description: 'Run GPU tests')
+  }
+  
+  environment {
+    SLACK_MESSAGE=" - Job '${env.JOB_NAME}' - Build #${env.BUILD_NUMBER}: ${env.BUILD_URL}"
+  }
+
+  stages {
+
+    stage("Repository") {
+      steps {
+        checkout scm
+      }
+    }
+
+    stage("Test") {
+      when {
+        expression {
+          return params.TEST ==~ /(?i)(Y|YES|T|TRUE|ON|RUN)/
+        }
+      }
+      steps {
+        sh "BLAZING_GPUCI_JOB=gpu-build ./conda-build-docker.sh ${params.RAPIDS_BUILD_VERSION} ${params.CUDA_VERSION} ${params.PYTHON_VERSION}"
+      }
+    }
+
+    stage("Build && Upload") {
+      steps {
+        withCredentials([string(credentialsId: "${params.CONDA_TOKEN}", variable: 'TOKEN')]) {
+          sh "BLAZING_GPUCI_JOB=cpu-build ./conda-build-docker.sh ${params.RAPIDS_BUILD_VERSION} ${params.CUDA_VERSION} ${params.PYTHON_VERSION} $TOKEN ${params.CONDA_USERNAME} ${params.TYPE}"
+        }
+      }
+    }
+
+  }
+
+}
+
